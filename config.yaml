@@ -1,0 +1,54 @@
+data:
+  db_name: "mitdb"
+  data_dir: "./data/raw"
+  processed_dir: "./data/processed"
+  recordings:
+    normal: ["100", "101", "102"]
+    pvc: ["103", "104"]
+    afib: ["105", "106"]
+    vt: ["107"]
+    other: ["108", "109"]
+  classes:
+    0: "Normal (N)"
+    1: "Atrial Fibrillation (A)"
+    2: "Premature Ventricular Contractions (PVC)"
+    3: "Ventricular Tachycardia (VT)"
+    4: "Other Arrhythmias"
+  num_classes: 5
+  raw_sampling_rate: 360
+  target_sampling_rate: 128
+  lowcut: 0.5
+  highcut: 50.0
+  filter_order: 4
+  segment_duration_sec: 10
+  samples_per_segment: 1280
+  matrix_rows: 40
+  matrix_cols: 32
+
+split:
+  split_mode: "segment"  # "segment" (stratified random split) or "recording" (patient-level split)
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  train_recordings: ["100", "101", "103", "105", "107", "108"]
+  val_recordings: ["102", "104"]
+  test_recordings: ["106", "109"]
+
+model:
+  name: "hybrid_cnn_lstm_gru"
+  in_channels: 1
+  matrix_rows: 40
+  matrix_cols: 32
+  num_classes: 5
+  cnn_filters: [32, 64]
+  lstm_hidden_size: 64
+  gru_hidden_size: 32
+  dropout: 0.3
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 1.0e-4
+  checkpoint_dir: "./checkpoints"
+  device: "auto"  # "auto", "cuda", "mps", or "cpu"

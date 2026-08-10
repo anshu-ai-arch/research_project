@@ -1,0 +1,23 @@
+# Python & PyTorch cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.idea/
+.vscode/
+
+# Large datasets & raw data files (can be downloaded via python main.py --download)
+data/raw/*.dat
+data/raw/*.hea
+data/raw/*.atr
+
+# Model checkpoints (large binary files)
+checkpoints/*.pth
+
+# Logs & OS generated files
+*.log
+.DS_Store
