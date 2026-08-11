@@ -4,6 +4,7 @@ import src.models.cnn_model
 import src.models.lstm_model
 import src.models.gru_model
 import src.models.hybrid_cnn_lstm_gru
+import src.models.hybrid_1d_cnn_lstm_gru
 
 
 def test_registered_models():

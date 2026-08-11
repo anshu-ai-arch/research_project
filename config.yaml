@@ -35,12 +35,14 @@ split:
   test_recordings: ["106", "109"]
 
 model:
-  name: "hybrid_cnn_lstm_gru"
+  name: "hybrid_1d_cnn_lstm_gru"  # Togglable option: "hybrid_cnn_lstm_gru" (2D paper) or "hybrid_1d_cnn_lstm_gru" (1D continuous)
   in_channels: 1
   matrix_rows: 40
   matrix_cols: 32
   num_classes: 5
   cnn_filters: [32, 64]
+  cnn_filters_1d: [32, 64, 64]
+  kernel_sizes_1d: [7, 5, 3]
   lstm_hidden_size: 64
   gru_hidden_size: 32
   dropout: 0.3

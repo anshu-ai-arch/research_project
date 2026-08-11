@@ -2,42 +2,36 @@
 
 A PyTorch implementation and extension of the research paper **"A new hybrid strategy for arrhythmia classification detection using (CNN-LSTM-GRU)"**. 
 
-This repository provides a modular, plug-and-play deep learning framework for ECG arrhythmia detection using the PhysioNet MIT-BIH Arrhythmia Database. It enables seamless model swapping (CNN, LSTM, GRU, Hybrid CNN-LSTM-GRU, and future architectures) without modifying data or evaluation pipelines.
+This repository provides a modular, plug-and-play deep learning framework for ECG arrhythmia detection using the PhysioNet MIT-BIH Arrhythmia Database. It supports both **2D Matrix Reshaped Processing (Paper Replication)** and **1D Continuous Waveform Convolutions (Novel Extension)** without modifying data or evaluation pipelines.
 
 ---
 
 ## 🌟 Key Features
 
-- **Paper Replication**: Implements the exact 4-phase methodology from the research paper (Dataset Ingestion $\to$ Preprocessing $\to$ Hybrid Deep Learning Model $\to$ Prediction & Evaluation).
+- **Paper Replication**: Implements the 4-phase methodology from the research paper (Dataset Ingestion $\to$ Preprocessing $\to$ Hybrid Deep Learning Model $\to$ Prediction & Evaluation).
+- **1D Continuous Waveform Convolutions (Extension)**: Operates directly on raw 1D ECG sequences ($1280$ points) via 1D convolutions (`Conv1d`), preserving uninterrupted wave morphology while reducing parameters by **$88\%$**.
 - **Exact Preprocessing Pipeline**:
   - 4th-order zero-phase Butterworth Bandpass Filtering ($0.5\,\text{Hz} - 50\,\text{Hz}$).
   - Resampling to $128\,\text{Hz}$.
   - 10-second segmentation ($1280$ samples).
   - Min-Max amplitude scaling $[0, 1]$.
-  - 2D Matrix Reshaping ($1280 \to 40 \times 32$).
+  - 2D Matrix Reshaping ($1280 \to 40 \times 32$) + 1D Raw Sequence mode.
 - **Modular Model Registry (`ModelFactory`)**:
-  - Dynamically register and switch architectures (`cnn`, `lstm`, `gru`, `hybrid_cnn_lstm_gru`, or custom user models) via simple string configuration.
-- **Comprehensive Evaluation**: Computes Accuracy, Sensitivity (Recall), Specificity, Precision, F1-Score, Cohen's Kappa, and generates Confusion Matrix heatmaps.
+  - Dynamically register and switch architectures (`cnn`, `lstm`, `gru`, `hybrid_cnn_lstm_gru`, `hybrid_1d_cnn_lstm_gru`, or custom user models) via simple string configuration.
 
 ---
 
-## 📊 Benchmark Performance Results
+## 📊 Benchmark Performance Results (5-Model Comparison)
 
 Tested on the PhysioNet MIT-BIH Arrhythmia Database across 5 arrhythmia classes: *Normal Rhythm (N)*, *Atrial Fibrillation (A)*, *Premature Ventricular Contractions (PVC)*, *Ventricular Tachycardia (VT)*, and *Other Arrhythmias*.
 
-| Model Architecture | Parameters | Accuracy (%) | Sensitivity (%) | Specificity (%) | F1-Score (%) | Cohen's Kappa |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Baseline 2D CNN** | 675,141 | **98.52%** | **98.52%** | **99.62%** | **98.58%** | **0.9810** |
-| **Baseline LSTM** | 158,085 | 88.52% | 89.26% | 97.10% | 88.87% | 0.8531 |
-| **Baseline GRU** | 120,709 | 93.33% | 93.70% | 98.32% | 93.45% | 0.9146 |
-| **Proposed Hybrid (CNN-LSTM-GRU)** | 572,037 | **97.41%** | **97.53%** | **99.31%** | **97.65%** | **0.9667** |
-
-### Per-Class Performance (Hybrid CNN-LSTM-GRU)
-- **Normal Rhythm (N)**: 98.77% Sensitivity | 98.41% Specificity | 97.56% F1
-- **Atrial Fibrillation (A)**: 94.44% Sensitivity | 99.54% Specificity | 96.23% F1
-- **Premature Ventricular Contractions (PVC)**: 96.30% Sensitivity | 99.54% Specificity | 97.20% F1
-- **Ventricular Tachycardia (VT)**: **100.00% Sensitivity** | **100.00% Specificity** | **100.00% F1**
-- **Other Arrhythmias**: 98.15% Sensitivity | 99.07% Specificity | 97.25% F1
+| Model Architecture | Input Format | Parameters | Accuracy (%) | Sensitivity (%) | Specificity (%) | F1-Score (%) | Cohen's Kappa |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Baseline 2D CNN** | 2D Matrix ($40 \times 32$) | 675,141 | 97.41% | 97.65% | 99.34% | 97.60% | 0.9668 |
+| **Baseline LSTM** | 1D Sequence ($1280$) | 158,085 | 88.52% | 88.40% | 97.07% | 88.36% | 0.8526 |
+| **Baseline GRU** | 1D Sequence ($1280$) | 120,709 | 94.44% | 94.57% | 98.58% | 94.47% | 0.9287 |
+| **Hybrid 2D CNN-LSTM-GRU (Paper)** | 2D Matrix ($40 \times 32$) | 572,037 | 97.78% | 98.15% | 99.42% | 98.08% | 0.9715 |
+| **Hybrid 1D CNN-LSTM-GRU (Novel 1D)** | **Raw Continuous 1D ($1280$)** | **68,357** | **99.63%** | **99.63%** | **99.89%** | **99.69%** | **0.9952** |
 
 ---
 
@@ -56,13 +50,17 @@ Automatically fetches MIT-BIH Arrhythmia records from PhysioNet:
 python main.py --download
 ```
 
-### 3. Train Proposed Hybrid Model
+### 3. Train Paper 2D Model or Novel 1D Model
 ```bash
+# Paper 2D Reshaped Model
 python main.py --train --model hybrid_cnn_lstm_gru
+
+# Novel 1D Continuous Waveform Model
+python main.py --train --model hybrid_1d_cnn_lstm_gru
 ```
 
 ### 4. Run Multi-Model Comparison Benchmark
-Trains and evaluates CNN, LSTM, GRU, and Hybrid models side-by-side:
+Trains and evaluates all 5 models side-by-side:
 ```bash
 python main.py --compare_all
 ```
@@ -88,7 +86,8 @@ research_project/
 │   │   ├── cnn_model.py        # Baseline 2D CNN
 │   │   ├── lstm_model.py       # Baseline LSTM
 │   │   ├── gru_model.py        # Baseline GRU
-│   │   └── hybrid_cnn_lstm_gru.py # Paper Proposed Hybrid Model
+│   │   ├── hybrid_cnn_lstm_gru.py    # Paper Proposed 2D Hybrid Model
+│   │   └── hybrid_1d_cnn_lstm_gru.py # Novel 1D Continuous Hybrid Model
 │   ├── engine/
 │   │   ├── trainer.py          # Training loop with PyTorch MPS/CUDA support
 │   │   └── evaluate.py         # Evaluation & Confusion Matrix generator
@@ -96,25 +95,3 @@ research_project/
 │       └── metrics.py          # Paper metrics (Accuracy, Recall, Specificity, F1, Kappa)
 └── results/                    # Saved confusion matrix heatmaps
 ```
-
----
-
-## 🚀 How to Add a New Model Architecture
-
-To test a new architecture (e.g. Mamba, Vision Transformer, ResNet):
-
-1. Create `src/models/my_new_model.py`.
-2. Inherit from `BaseECGModel` and register it:
-   ```python
-   from src.models.base_model import BaseECGModel
-   from src.models.factory import ModelFactory
-
-   @ModelFactory.register("my_new_model")
-   class MyNewModel(BaseECGModel):
-       def forward(self, x):
-           ...
-   ```
-3. Run training with `--model my_new_model`:
-   ```bash
-   python main.py --train --model my_new_model
-   ```
