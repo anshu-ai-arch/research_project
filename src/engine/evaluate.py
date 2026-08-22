@@ -17,6 +17,12 @@ import src.models.lstm_model
 import src.models.gru_model
 import src.models.hybrid_cnn_lstm_gru
 import src.models.hybrid_1d_cnn_lstm_gru
+import src.models.hybrid_cnn_gru
+import src.models.hybrid_1d_cnn_gru
+import src.models.hybrid_1d_bi_cnn_gru
+import src.models.hybrid_1d_multiscale_se_bigru
+import src.models.hybrid_1d_cnn_transformer
+import src.models.hybrid_1d_cnn_transformer_fusion
 
 
 def evaluate_checkpoint(checkpoint_path: str, test_loader: DataLoader) -> Dict[str, Any]:
@@ -38,13 +44,26 @@ def evaluate_checkpoint(checkpoint_path: str, test_loader: DataLoader) -> Dict[s
 
     all_preds = []
     all_targets = []
-
     with torch.no_grad():
-        for batch_2d, batch_1d, targets in test_loader:
-            batch_2d = batch_2d.to(device)
-            outputs = model(batch_2d)
-            preds = outputs.argmax(dim=1)
+        for batch in test_loader:
+            if len(batch) == 4:
+                batch_2d, batch_1d, batch_rr, targets = batch
+                batch_2d = batch_2d.to(device)
+                batch_1d = batch_1d.to(device)
+                batch_rr = batch_rr.to(device)
+                targets = targets.to(device)
 
+                if "fusion" in model.get_model_name().lower():
+                    outputs = model(batch_1d, batch_rr)
+                else:
+                    outputs = model(batch_2d)
+            else:
+                batch_2d, batch_1d, targets = batch
+                batch_2d = batch_2d.to(device)
+                targets = targets.to(device)
+                outputs = model(batch_2d)
+
+            preds = outputs.argmax(dim=1)
             all_preds.extend(preds.cpu().numpy())
             all_targets.extend(targets.cpu().numpy())
 
@@ -75,8 +94,25 @@ def evaluate_checkpoint(checkpoint_path: str, test_loader: DataLoader) -> Dict[s
     plt.xlabel("Predicted Label")
     plt.ylabel("True Label")
     plt.tight_layout()
-    plt.savefig(cm_path, dpi=300)
-    plt.close()
-
     print(f"[*] Saved confusion matrix plot to '{cm_path}'")
+
+    if model_name == "hybrid_cnn_lstm_gru":
+        paper_cm_path = results_dir / "confusion_matrix_paper_replication.png"
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(
+            metrics["confusion_matrix"],
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=[class_names[i] for i in range(num_classes)],
+            yticklabels=[class_names[i] for i in range(num_classes)]
+        )
+        plt.title("Confusion Matrix (Paper Replication: Hybrid 2D CNN-LSTM-GRU)")
+        plt.xlabel("Predicted Label")
+        plt.ylabel("True Label")
+        plt.tight_layout()
+        plt.savefig(paper_cm_path, dpi=300)
+        plt.close()
+        print(f"[*] Saved paper replication confusion matrix plot to '{paper_cm_path}'")
+
     return metrics

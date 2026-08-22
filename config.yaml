@@ -2,55 +2,54 @@ data:
   db_name: "mitdb"
   data_dir: "./data/raw"
   processed_dir: "./data/processed"
-  recordings:
-    normal: ["100", "101", "102"]
-    pvc: ["103", "104"]
-    afib: ["105", "106"]
-    vt: ["107"]
-    other: ["108", "109"]
+  dataset_mode: "beat"
+  use_filtering: true
   classes:
     0: "Normal (N)"
-    1: "Atrial Fibrillation (A)"
-    2: "Premature Ventricular Contractions (PVC)"
-    3: "Ventricular Tachycardia (VT)"
-    4: "Other Arrhythmias"
+    1: "Supraventricular / A-Fib (SVEB/A)"
+    2: "Ventricular Ectopic / PVC (VEB/PVC)"
+    3: "Fusion / Ventricular Tachycardia (F/VT)"
+    4: "Unknown / Paced / Other (Q)"
   num_classes: 5
   raw_sampling_rate: 360
   target_sampling_rate: 128
   lowcut: 0.5
   highcut: 50.0
   filter_order: 4
+  beat_window_size: 256
+  matrix_rows: 16
+  matrix_cols: 16
   segment_duration_sec: 10
   samples_per_segment: 1280
-  matrix_rows: 40
-  matrix_cols: 32
 
 split:
-  split_mode: "segment"  # "segment" (stratified random split) or "recording" (patient-level split)
-  train_ratio: 0.70
-  val_ratio: 0.15
-  test_ratio: 0.15
-  train_recordings: ["100", "101", "103", "105", "107", "108"]
-  val_recordings: ["102", "104"]
-  test_recordings: ["106", "109"]
+  split_mode: "inter_patient"
+  train_ratio: 0.80
+  val_ratio: 0.20
+  ds1_train_recordings: ["101", "106", "108", "109", "112", "114", "115", "116", "118", "119", "122", "124", "201", "203", "205", "207", "208", "209", "215", "220", "223", "230"]
+  ds2_test_recordings: ["100", "103", "105", "111", "113", "117", "121", "123", "200", "202", "210", "212", "213", "214", "219", "221", "222", "228", "231", "232", "233", "234"]
 
 model:
-  name: "hybrid_1d_cnn_lstm_gru"  # Togglable option: "hybrid_cnn_lstm_gru" (2D paper) or "hybrid_1d_cnn_lstm_gru" (1D continuous)
+  name: "hybrid_1d_cnn_transformer_fusion"  # Ultimate RR-Interval Fusion + Focal Loss Model
   in_channels: 1
-  matrix_rows: 40
-  matrix_cols: 32
+  matrix_rows: 16
+  matrix_cols: 16
   num_classes: 5
-  cnn_filters: [32, 64]
-  cnn_filters_1d: [32, 64, 64]
-  kernel_sizes_1d: [7, 5, 3]
-  lstm_hidden_size: 64
-  gru_hidden_size: 32
-  dropout: 0.3
+  cnn_filters: [32, 48, 48]
+  seq_len: 32
+  d_model: 48
+  nhead: 4
+  dim_feedforward: 48
+  dropout: 0.2
 
 training:
-  epochs: 50
-  batch_size: 32
+  epochs: 25
+  batch_size: 64
   learning_rate: 0.001
   weight_decay: 1.0e-4
+  use_focal_loss: true     # Active Focal Loss (gamma=2.0)
+  focal_gamma: 2.0
+  use_class_weights: true  # Inverse class weights [1.0, 10.0, 3.0, 10.0, 50.0]
+  use_oversampling: true     # WeightedRandomSampler
   checkpoint_dir: "./checkpoints"
-  device: "auto"  # "auto", "cuda", "mps", or "cpu"
+  device: "auto"

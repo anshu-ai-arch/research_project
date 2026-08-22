@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 from pathlib import Path
@@ -11,6 +12,29 @@ from torch.utils.data import DataLoader
 from src.models.base_model import BaseECGModel
 from src.models.factory import ModelFactory
 from src.utils.metrics import compute_metrics, print_metrics_report
+
+
+class FocalLoss(nn.Module):
+    """
+    Focal Loss for addressing severe class imbalance.
+    FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
+    """
+
+    def __init__(self, alpha: torch.Tensor = None, gamma: float = 2.0):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        ce_loss = F.cross_entropy(inputs, targets, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = ((1.0 - pt) ** self.gamma) * ce_loss
+
+        if self.alpha is not None:
+            alpha_t = self.alpha[targets]
+            focal_loss = alpha_t * focal_loss
+
+        return focal_loss.mean()
 
 
 def get_device(device_str: str = "auto") -> torch.device:
@@ -52,7 +76,24 @@ class Trainer:
         self.checkpoint_dir = Path(config["training"].get("checkpoint_dir", "./checkpoints"))
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-        self.criterion = nn.CrossEntropyLoss()
+        use_focal = config["training"].get("use_focal_loss", True)
+        if config["training"].get("use_class_weights", True):
+            weights = torch.tensor([1.0, 10.0, 3.0, 10.0, 50.0], dtype=torch.float32).to(self.device)
+            if use_focal:
+                gamma = float(config["training"].get("focal_gamma", 2.0))
+                self.criterion = FocalLoss(alpha=weights, gamma=gamma)
+                print(f"[*] Applied Focal Loss (gamma={gamma}) with Alpha Weights: {weights.cpu().tolist()}")
+            else:
+                self.criterion = nn.CrossEntropyLoss(weight=weights)
+                print(f"[*] Applied Inverse Class Weights to CrossEntropyLoss: {weights.cpu().tolist()}")
+        else:
+            if use_focal:
+                gamma = float(config["training"].get("focal_gamma", 2.0))
+                self.criterion = FocalLoss(gamma=gamma)
+                print(f"[*] Applied Focal Loss (gamma={gamma}) without Alpha Weights.")
+            else:
+                self.criterion = nn.CrossEntropyLoss()
+
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode="min", factor=0.5, patience=5
@@ -64,12 +105,25 @@ class Trainer:
         correct = 0
         total = 0
 
-        for batch_2d, batch_1d, targets in train_loader:
-            batch_2d = batch_2d.to(self.device)
-            targets = targets.to(self.device)
+        for batch in train_loader:
+            if len(batch) == 4:
+                batch_2d, batch_1d, batch_rr, targets = batch
+                batch_2d = batch_2d.to(self.device)
+                batch_1d = batch_1d.to(self.device)
+                batch_rr = batch_rr.to(self.device)
+                targets = targets.to(self.device)
+
+                if "fusion" in self.model.get_model_name().lower():
+                    outputs = self.model(batch_1d, batch_rr)
+                else:
+                    outputs = self.model(batch_2d)
+            else:
+                batch_2d, batch_1d, targets = batch
+                batch_2d = batch_2d.to(self.device)
+                targets = targets.to(self.device)
+                outputs = self.model(batch_2d)
 
             self.optimizer.zero_grad()
-            outputs = self.model(batch_2d)
             loss = self.criterion(outputs, targets)
             loss.backward()
             self.optimizer.step()
@@ -90,11 +144,24 @@ class Trainer:
         all_preds = []
         all_targets = []
 
-        for batch_2d, batch_1d, targets in data_loader:
-            batch_2d = batch_2d.to(self.device)
-            targets = targets.to(self.device)
+        for batch in data_loader:
+            if len(batch) == 4:
+                batch_2d, batch_1d, batch_rr, targets = batch
+                batch_2d = batch_2d.to(self.device)
+                batch_1d = batch_1d.to(self.device)
+                batch_rr = batch_rr.to(self.device)
+                targets = targets.to(self.device)
 
-            outputs = self.model(batch_2d)
+                if "fusion" in self.model.get_model_name().lower():
+                    outputs = self.model(batch_1d, batch_rr)
+                else:
+                    outputs = self.model(batch_2d)
+            else:
+                batch_2d, batch_1d, targets = batch
+                batch_2d = batch_2d.to(self.device)
+                targets = targets.to(self.device)
+                outputs = self.model(batch_2d)
+
             loss = self.criterion(outputs, targets)
 
             total_loss += loss.item() * targets.size(0)

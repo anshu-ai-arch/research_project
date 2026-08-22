@@ -14,14 +14,22 @@ class BaselineGRU(BaseECGModel):
         self,
         in_channels: int = 1,
         num_classes: int = 5,
+        matrix_cols: int = 16,
         hidden_size: int = 64,
         num_layers: int = 2,
         dropout: float = 0.3,
         **kwargs
     ):
         super().__init__()
+        self.matrix_cols = matrix_cols
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.proj = nn.Linear(matrix_cols, hidden_size)
+
         self.gru = nn.GRU(
-            input_size=32,  # 40 steps of dimension 32
+            input_size=hidden_size,
             hidden_size=hidden_size,
             num_layers=num_layers,
             batch_first=True,
@@ -40,8 +48,19 @@ class BaselineGRU(BaseECGModel):
         if x.dim() == 4:
             x = x.squeeze(1)
         elif x.dim() == 3 and x.size(1) == 1:
-            x = x.view(x.size(0), 40, 32)
+            B, _, L = x.shape
+            side = int(L**0.5)
+            x = x.view(B, side, side)
+        elif x.dim() == 2:
+            B, L = x.shape
+            side = int(L**0.5)
+            x = x.view(B, side, side)
 
-        out, h_n = self.gru(x)
+        in_dim = x.size(-1)
+        if self.proj.in_features != in_dim:
+            self.proj = nn.Linear(in_dim, self.hidden_size).to(x.device)
+
+        seq = self.proj(x)
+        out, _ = self.gru(seq)
         out = torch.max(out, dim=1)[0]
         return self.classifier(out)

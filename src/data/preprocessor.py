@@ -23,6 +23,7 @@ class ECGPreprocessor:
         segment_duration_sec: float = 10.0,
         matrix_rows: int = 40,
         matrix_cols: int = 32,
+        use_filtering: bool = True,
     ):
         self.raw_fs = raw_fs
         self.target_fs = target_fs
@@ -32,11 +33,12 @@ class ECGPreprocessor:
         self.segment_duration_sec = segment_duration_sec
         self.matrix_rows = matrix_rows
         self.matrix_cols = matrix_cols
+        self.use_filtering = use_filtering
 
         self.samples_per_segment = int(self.target_fs * self.segment_duration_sec)  # 1280
         assert (
-            self.matrix_rows * self.matrix_cols == self.samples_per_segment
-        ), f"Matrix size {self.matrix_rows}x{self.matrix_cols} != {self.samples_per_segment}"
+            self.matrix_rows * self.matrix_cols in (self.samples_per_segment, 256)
+        ), f"Matrix size {self.matrix_rows}x{self.matrix_cols} != {self.samples_per_segment} or 256"
 
     def bandpass_filter(self, ecg_signal: np.ndarray) -> np.ndarray:
         """Applies 4th order zero-phase Butterworth bandpass filter (0.5Hz - 50Hz)."""
@@ -95,11 +97,14 @@ class ECGPreprocessor:
             - 1D segments array: (N_segments, 1280)
             - 2D matrices array: (N_segments, 40, 32)
         """
-        # Step 1: Bandpass Filter
-        filtered = self.bandpass_filter(ecg_signal)
+        # Step 1: Bandpass Filter (Optional based on self.use_filtering)
+        if self.use_filtering:
+            signal_to_process = self.bandpass_filter(ecg_signal)
+        else:
+            signal_to_process = ecg_signal
 
         # Step 2: Resample to 128 Hz
-        resampled = self.resample_signal(filtered)
+        resampled = self.resample_signal(signal_to_process)
 
         # Step 3: Segment into 10s windows (1280 samples)
         raw_segments = self.segment_signal(resampled)

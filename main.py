@@ -14,22 +14,33 @@ import src.models.lstm_model
 import src.models.gru_model
 import src.models.hybrid_cnn_lstm_gru
 import src.models.hybrid_1d_cnn_lstm_gru
+import src.models.hybrid_cnn_gru
+import src.models.hybrid_1d_cnn_gru
+import src.models.hybrid_1d_bi_cnn_gru
+import src.models.hybrid_1d_multiscale_se_bigru
+import src.models.hybrid_1d_cnn_transformer
+import src.models.hybrid_1d_cnn_transformer_fusion
 
 
 def main():
     parser = argparse.ArgumentParser(description="ECG Arrhythmia Classification System (Paper Replication & Swappable Architectures)")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to config file")
     parser.add_argument("--download", action="store_true", help="Download PhysioNet MIT-BIH records")
-    parser.add_argument("--model", type=str, default=None, help="Model name to train/eval (cnn, lstm, gru, hybrid_cnn_lstm_gru, hybrid_1d_cnn_lstm_gru)")
+    parser.add_argument("--model", type=str, default=None, help="Model name (cnn, lstm, gru, hybrid_cnn_lstm_gru, hybrid_1d_cnn_lstm_gru, hybrid_cnn_gru, hybrid_1d_cnn_gru)")
     parser.add_argument("--epochs", type=int, default=None, help="Override number of training epochs")
     parser.add_argument("--train", action="store_true", help="Train specified model")
     parser.add_argument("--evaluate", action="store_true", help="Evaluate trained model checkpoint")
     parser.add_argument("--compare_all", action="store_true", help="Train and benchmark all registered models side-by-side")
+    parser.add_argument("--no_preprocess", action="store_true", help="Bypass bandpass filter and train directly on raw ECG signals")
 
     args = parser.parse_args()
 
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
+
+    if args.no_preprocess:
+        config["data"]["use_filtering"] = False
+        print("[!] RAW ECG MODE ACTIVATED: Bandpass filtering is BYPASSED.")
 
     if args.model:
         config["model"]["name"] = args.model
@@ -45,7 +56,15 @@ def main():
         print("=" * 70)
         
         train_loader, val_loader, test_loader, cfg = get_dataloaders(args.config)
-        models_to_test = ["cnn", "lstm", "gru", "hybrid_cnn_lstm_gru", "hybrid_1d_cnn_lstm_gru"]
+        models_to_test = [
+            "cnn",
+            "lstm",
+            "gru",
+            "hybrid_cnn_lstm_gru",
+            "hybrid_1d_cnn_lstm_gru",
+            "hybrid_cnn_gru",
+            "hybrid_1d_cnn_gru"
+        ]
         summary_results = []
 
         for m_name in models_to_test:

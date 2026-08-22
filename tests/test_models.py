@@ -5,6 +5,12 @@ import src.models.lstm_model
 import src.models.gru_model
 import src.models.hybrid_cnn_lstm_gru
 import src.models.hybrid_1d_cnn_lstm_gru
+import src.models.hybrid_cnn_gru
+import src.models.hybrid_1d_cnn_gru
+import src.models.hybrid_1d_bi_cnn_gru
+import src.models.hybrid_1d_multiscale_se_bigru
+import src.models.hybrid_1d_cnn_transformer
+import src.models.hybrid_1d_cnn_transformer_fusion
 
 
 def test_registered_models():
