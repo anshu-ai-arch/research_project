@@ -10,14 +10,13 @@ venv/
 .idea/
 .vscode/
 
-# Large datasets & raw data files (can be downloaded via python main.py --download)
+# Large raw dataset files (downloadable via PhysioNet wfdb)
 data/raw/*.dat
 data/raw/*.hea
 data/raw/*.atr
 
-# Model checkpoints (large binary files)
-checkpoints/*.pth
-
-# Logs & OS generated files
+# Temporary logs & OS generated files
 *.log
 .DS_Store
+cockroach/
+scratch/

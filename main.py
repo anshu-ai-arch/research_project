@@ -29,6 +29,8 @@ def main():
     parser.add_argument("--model", type=str, default=None, help="Model name (cnn, lstm, gru, hybrid_cnn_lstm_gru, hybrid_1d_cnn_lstm_gru, hybrid_cnn_gru, hybrid_1d_cnn_gru)")
     parser.add_argument("--epochs", type=int, default=None, help="Override number of training epochs")
     parser.add_argument("--train", action="store_true", help="Train specified model")
+    parser.add_argument("--optimize", action="store_true", help="Run Optuna hyperparameter optimization for Model C")
+    parser.add_argument("--n_trials", type=int, default=15, help="Number of Optuna trials to run")
     parser.add_argument("--evaluate", action="store_true", help="Evaluate trained model checkpoint")
     parser.add_argument("--compare_all", action="store_true", help="Train and benchmark all registered models side-by-side")
     parser.add_argument("--no_preprocess", action="store_true", help="Bypass bandpass filter and train directly on raw ECG signals")
@@ -95,6 +97,17 @@ def main():
         for r in summary_results:
             print(f"{r['Model']:<20} | {r['Parameters']:<10} | {r['Accuracy (%)']:<10} | {r['Sensitivity (%)']:<12} | {r['Specificity (%)']:<12} | {r['F1-Score (%)']:<10} | {r['Cohen\'s Kappa']:<8}")
         print("=" * 80 + "\n")
+        return
+
+    if args.optimize:
+        from src.optimization.optuna_pipeline import run_optuna_study
+        epochs = args.epochs if args.epochs else 10
+        print("\n[*] Initializing Model C Optuna Optimization Pipeline...")
+        run_optuna_study(
+            config_path=args.config,
+            n_trials=args.n_trials,
+            epochs_per_trial=epochs
+        )
         return
 
     if args.train:

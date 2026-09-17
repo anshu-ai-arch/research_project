@@ -1,0 +1,14 @@
+{
+    "best_trial_number": 0,
+    "best_val_macro_f1": 47.886030170820106,
+    "best_params": {
+        "conv_out_channels": 32,
+        "conv_kernel_size": 5,
+        "gru_hidden_size": 128,
+        "gru_num_layers": 1,
+        "dropout": 0.41149764403172806,
+        "lr": 0.003388707881987423,
+        "loss_type": "weighted_ce"
+    },
+    "total_duration_sec": 226.78255009651184
+}
